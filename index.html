@@ -42,7 +42,7 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
 <div class="footer">STUDYVERSE AI · Концепт-прототип · 2026</div>
 </div>
 <div class="modal" id="uploadModal"><div class="dialog"><h2 data-ru="Создать учебный набор" data-kz="Оқу жинағын жасау">Создать учебный набор</h2><p class="muted" data-ru="Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный." data-kz="Төмендегі жүктеу бөлімінен файлды таңда. Бұл кезеңде интерфейс демонстрациялық.">Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный.</p><button class="btn" onclick="closeModal()" data-ru="Закрыть" data-kz="Жабу">Закрыть</button></div></div>
-<div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст. Пока это демонстрация интерфейса; AI-подключение добавим следующим этапом." data-kz="Оқу мәтінін енгіз. Әзірге бұл интерфейс демонстрациясы; AI қосылымын келесі кезеңде қосамыз.">Вставь учебный текст. Пока это демонстрация интерфейса; AI-подключение добавим следующим этапом.</p><textarea placeholder="Вставь текст лекции или учебного материала..."></textarea><div class="row"><button class="btn primary" onclick="demoResult('notes')">Создать демо-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none">КОНСПЕКТ\n\n1. Основная тема: ключевая идея материала.\n2. Важные понятия: определения и термины.\n3. Главное: три наиболее значимых вывода.\n\nДемонстрационный пример. Реальная генерация будет подключена позже.</div></div></div>
+<div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст — Gemini подготовит структурированный конспект." data-kz="Оқу мәтінін енгіз — Gemini құрылымды конспект дайындайды.">Вставь учебный текст — Gemini подготовит структурированный конспект.</p><textarea id="noteInput" placeholder="Вставь текст лекции или учебного материала..." maxlength="20000"></textarea><div class="row"><button class="btn primary" id="summaryBtn" onclick="generateSummary()">Создать AI-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none"></div><p class="muted" style="font-size:11px">Не вставляй личные или конфиденциальные данные. Демо-версия: до 20 000 символов за запрос.</p></div></div>
 <div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p data-ru="Какой подход помогает лучше закреплять знания?" data-kz="Қай тәсіл білімді жақсы меңгеруге көмектеседі?">Какой подход помогает лучше закреплять знания?</p><div class="row" style="flex-direction:column"><button class="btn" onclick="quizAnswer(false)">Прочитать материал один раз</button><button class="btn" onclick="quizAnswer(true)">Регулярно повторять и проверять себя</button><button class="btn" onclick="quizAnswer(false)">Учить всё только накануне</button></div><div class="result" id="quizResult" style="display:none"></div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
 <div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><div class="result" id="flashText">Активное повторение<br><br>Нажми «Показать ответ».</div><div class="row"><button class="btn primary" onclick="document.getElementById('flashText').innerHTML='Метод обучения, при котором ученик самостоятельно вспоминает информацию, а не просто перечитывает её.'">Показать ответ</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
 <div class="modal" id="planModal"><div class="dialog"><h2>Study Planner</h2><p>Демо-план на 3 дня</p><div class="result">День 1 · Изучи материал и выдели 5 ключевых понятий.\nДень 2 · Повтори понятия и пройди тест.\nДень 3 · Разбери ошибки и пройди повторную проверку.</div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
@@ -53,7 +53,34 @@ let lang='ru';
 function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(){document.querySelectorAll('.modal').forEach(m=>m.classList.remove('show'))}
 function showToast(t){let x=document.getElementById('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)}
-function demoResult(){document.getElementById('notesResult').style.display='block'}
+
+async function generateSummary(){
+  const input=document.getElementById('noteInput');
+  const result=document.getElementById('notesResult');
+  const button=document.getElementById('summaryBtn');
+  const text=input.value.trim();
+  if(text.length<30){showToast(lang==='ru'?'Добавь учебный текст (минимум 30 символов)':'Оқу мәтінін енгіз (кемінде 30 таңба)');return}
+  button.disabled=true;
+  button.textContent=lang==='ru'?'Готовим конспект…':'Конспект дайындалуда…';
+  result.style.display='block';
+  result.textContent=lang==='ru'?'Gemini анализирует материал. Подожди немного…':'Gemini материалды талдап жатыр. Күте тұр…';
+  try{
+    const response=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text,language:lang,task:'summary'})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error||'Не удалось получить ответ от AI');
+    result.textContent=data.result||'AI вернул пустой ответ.';
+  }catch(error){
+    result.textContent='Ошибка: '+error.message+'\\n\\nПроверь подключение API и переменную GEMINI_API_KEY в Vercel.';
+  }finally{
+    button.disabled=false;
+    button.textContent=lang==='ru'?'Создать AI-конспект':'AI-конспект жасау';
+  }
+}
+
 function quizAnswer(ok){let r=document.getElementById('quizResult');r.style.display='block';r.textContent=ok?'Верно! Регулярное повторение и самопроверка помогают закреплять знания.':'Попробуй ещё раз. Подсказка: важно не только читать, но и вспоминать информацию.'}
 document.getElementById('fileInput').addEventListener('change',e=>{let f=e.target.files[0];document.getElementById('fileName').textContent=f?f.name+' · выбран для демонстрации':'Файл пока не выбран'});
 document.getElementById('langBtn').addEventListener('click',()=>{lang=lang==='ru'?'kz':'ru';document.documentElement.lang=lang;document.querySelectorAll('[data-ru]').forEach(el=>{el.innerHTML=el.getAttribute('data-'+lang)});document.getElementById('langBtn').textContent=lang==='ru'?'ҚАЗ / РУС':'РУС / ҚАЗ'});
