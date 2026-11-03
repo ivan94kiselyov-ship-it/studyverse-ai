@@ -11,6 +11,7 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
 @media(max-width:800px){.hero,.bottom{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.wide{grid-column:span 2}.app{padding:16px}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.wide{grid-column:span 1}.top{align-items:flex-start}.actions{flex-wrap:wrap;justify-content:flex-end}.welcome,.streak{padding:19px}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 </head>
 <body>
 <div class="app">
@@ -36,12 +37,12 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
  <article class="card"><div class="card-icon">◎</div><h3>AI Tutor</h3><p data-ru="Задай вопрос и получи объяснение сложной темы." data-kz="Сұрақ қойып, күрделі тақырыптың түсіндірмесін ал.">Задай вопрос и получи объяснение сложной темы.</p><button class="btn" onclick="openModal('tutorModal')" data-ru="Спросить AI →" data-kz="AI-дан сұрау →">Спросить AI →</button></article>
 </section>
 <section class="bottom">
- <div class="card wide"><div class="section-head" style="margin:0 0 12px"><h2 data-ru="Начни с учебного материала" data-kz="Оқу материалынан баста">Начни с учебного материала</h2><span>PDF · TXT · DOCX</span></div><div class="upload"><div style="font-size:28px">⇧</div><p data-ru="Добавь файл, чтобы подготовить его к изучению" data-kz="Оқу үшін файлды жүкте">Добавь файл, чтобы подготовить его к изучению</p><label for="fileInput" data-ru="Выбрать файл" data-kz="Файлды таңдау">Выбрать файл</label><input id="fileInput" type="file" accept=".pdf,.txt,.doc,.docx"><div class="upload-name" id="fileName">Файл пока не выбран</div></div></div>
+ <div class="card wide"><div class="section-head" style="margin:0 0 12px"><h2 data-ru="Начни с учебного материала" data-kz="Оқу материалынан баста">Начни с учебного материала</h2><span>PDF · TXT</span></div><div class="upload"><div style="font-size:28px">⇧</div><p data-ru="Добавь файл, чтобы подготовить его к изучению" data-kz="Оқу үшін файлды жүкте">Добавь файл, чтобы подготовить его к изучению</p><label for="fileInput" data-ru="Выбрать файл" data-kz="Файлды таңдау">Выбрать файл</label><input id="fileInput" type="file" accept=".pdf,.txt,application/pdf,text/plain"><div class="upload-name" id="fileName">Файл пока не выбран</div><div class="row" style="justify-content:center"><button class="btn primary" id="useFileBtn" style="display:none" onclick="useLoadedFile()">Использовать материал →</button></div><div class="upload-name" id="fileStatus" aria-live="polite"></div></div></div>
  <div class="card"><div class="eyebrow" data-ru="СОВЕТ ДНЯ" data-kz="КҮН КЕҢЕСІ">СОВЕТ ДНЯ</div><h3 data-ru="Учись короткими подходами" data-kz="Қысқа уақыт аралығында оқы">Учись короткими подходами</h3><p data-ru="Попробуй 25 минут сосредоточенной учёбы и 5 минут отдыха. Регулярное повторение помогает лучше закреплять знания." data-kz="25 минут зейін қойып оқып, 5 минут демалып көр. Тұрақты қайталау білімді жақсы меңгеруге көмектеседі.">Попробуй 25 минут сосредоточенной учёбы и 5 минут отдыха. Регулярное повторение помогает лучше закреплять знания.</p><button class="btn" onclick="showToast('Совет добавлен в твой учебный маршрут')" data-ru="Понятно" data-kz="Түсінікті">Понятно</button></div>
 </section>
 <div class="footer">STUDYVERSE AI · Концепт-прототип · 2026</div>
 </div>
-<div class="modal" id="uploadModal"><div class="dialog"><h2 data-ru="Создать учебный набор" data-kz="Оқу жинағын жасау">Создать учебный набор</h2><p class="muted" data-ru="Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный." data-kz="Төмендегі жүктеу бөлімінен файлды таңда. Бұл кезеңде интерфейс демонстрациялық.">Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный.</p><button class="btn" onclick="closeModal()" data-ru="Закрыть" data-kz="Жабу">Закрыть</button></div></div>
+<div class="modal" id="uploadModal"><div class="dialog"><h2 data-ru="Создать учебный набор" data-kz="Оқу жинағын жасау">Создать учебный набор</h2><p class="muted" data-ru="Выбери PDF или TXT в блоке загрузки на главной странице. Текст автоматически появится в инструментах AI." data-kz="Төмендегі жүктеу бөлімінен файлды таңда. Мәтін AI құралдарына автоматты түрде қосылады.">Выбери PDF или TXT в блоке загрузки на главной странице. Текст автоматически появится в инструментах AI.</p><button class="btn primary" onclick="closeModal();document.getElementById('fileInput').click()">Выбрать PDF / TXT</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div>
 <div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст — Gemini подготовит структурированный конспект." data-kz="Оқу мәтінін енгіз — Gemini құрылымды конспект дайындайды.">Вставь учебный текст — Gemini подготовит структурированный конспект.</p><textarea id="noteInput" placeholder="Вставь текст лекции или учебного материала..." maxlength="20000"></textarea><div class="row"><button class="btn primary" id="summaryBtn" onclick="generateSummary()">Создать AI-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none"></div><p class="muted" style="font-size:11px">Не вставляй личные или конфиденциальные данные. Демо-версия: до 20 000 символов за запрос.</p></div></div>
 <div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p class="muted">Вставь учебный материал — Gemini создаст 5 вопросов с четырьмя вариантами ответа.</p><textarea id="quizInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="quizGenerateBtn" onclick="generateQuiz()">Создать тест</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="quizStage"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
 <div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><p class="muted" data-ru="Вставь учебный текст — Gemini создаст 8 карточек для запоминания." data-kz="Оқу мәтінін енгіз — Gemini есте сақтауға арналған 8 карточка жасайды.">Вставь учебный текст — Gemini создаст 8 карточек для запоминания.</p><textarea id="flashInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="flashGenerateBtn" onclick="generateFlashcards()">Создать карточки</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="flashStage" aria-live="polite"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
@@ -164,7 +165,52 @@ function renderQuiz(){
   }
 }
 
-document.getElementById('fileInput').addEventListener('change',e=>{let f=e.target.files[0];document.getElementById('fileName').textContent=f?f.name+' · выбран для демонстрации':'Файл пока не выбран'});
+let loadedMaterial='', loadedMaterialName='';
+const MAX_MATERIAL_CHARS=20000, MAX_FILE_BYTES=8*1024*1024;
+async function extractPdfText(file){
+  if(!window.pdfjsLib)throw new Error('Библиотека чтения PDF не загрузилась. Проверь интернет и обнови страницу.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+  let text='';
+  for(let page=1;page<=pdf.numPages;page++){
+    const content=await (await pdf.getPage(page)).getTextContent();
+    const pageText=content.items.map(item=>item.str||'').join(' ');
+    text+='\n'+pageText;
+    if(text.length>=MAX_MATERIAL_CHARS)break;
+  }
+  return text;
+}
+async function loadStudyFile(file){
+  const status=document.getElementById('fileStatus');
+  const name=document.getElementById('fileName');
+  const btn=document.getElementById('useFileBtn');
+  loadedMaterial='';loadedMaterialName='';btn.style.display='none';
+  if(!file){name.textContent='Файл пока не выбран';status.textContent='';return}
+  name.textContent=file.name;status.textContent='Читаем файл…';
+  if(file.size>MAX_FILE_BYTES){status.textContent='Ошибка: максимальный размер файла — 8 МБ.';return}
+  try{
+    const extension=file.name.split('.').pop().toLowerCase();
+    let text;
+    if(extension==='txt')text=await file.text();
+    else if(extension==='pdf')text=await extractPdfText(file);
+    else throw new Error('Поддерживаются только PDF и TXT.');
+    text=text.replace(/\s+/g,' ').trim();
+    if(text.length<30)throw new Error('Не удалось извлечь достаточно текста. Возможно, PDF состоит из сканов страниц.');
+    const shortened=text.length>MAX_MATERIAL_CHARS;
+    loadedMaterial=text.slice(0,MAX_MATERIAL_CHARS);loadedMaterialName=file.name;
+    for(const id of ['noteInput','quizInput','flashInput'])document.getElementById(id).value=loadedMaterial;
+    status.textContent='Готово: '+loadedMaterial.length.toLocaleString('ru-RU')+' символов. '+(shortened?'Использованы первые 20 000 символов.':'Материал добавлен в AI-инструменты.');
+    btn.style.display='inline-block';
+  }catch(error){status.textContent='Ошибка: '+error.message}
+}
+function useLoadedFile(){
+  if(!loadedMaterial){showToast('Сначала выбери PDF или TXT');return}
+  closeModal();openModal('notesModal');
+  document.getElementById('noteInput').focus();
+  showToast('Материал из '+loadedMaterialName+' готов к анализу');
+}
+document.getElementById('fileInput').addEventListener('change',e=>loadStudyFile(e.target.files[0]));
 document.getElementById('langBtn').addEventListener('click',()=>{lang=lang==='ru'?'kz':'ru';document.documentElement.lang=lang;document.querySelectorAll('[data-ru]').forEach(el=>{el.innerHTML=el.getAttribute('data-'+lang)});document.getElementById('langBtn').textContent=lang==='ru'?'ҚАЗ / РУС':'РУС / ҚАЗ'});
 document.getElementById('profileBtn').addEventListener('click',()=>showToast('Личный кабинет добавим на следующем этапе'));
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal()}));
