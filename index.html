@@ -47,11 +47,31 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
 <div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст — Gemini подготовит структурированный конспект." data-kz="Оқу мәтінін енгіз — Gemini құрылымды конспект дайындайды.">Вставь учебный текст — Gemini подготовит структурированный конспект.</p><textarea id="noteInput" placeholder="Вставь текст лекции или учебного материала..." maxlength="20000"></textarea><div class="row"><button class="btn primary" id="summaryBtn" onclick="generateSummary()">Создать AI-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none"></div><p class="muted" style="font-size:11px">Не вставляй личные или конфиденциальные данные. Демо-версия: до 20 000 символов за запрос.</p></div></div>
 <div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p class="muted">Вставь учебный материал — Gemini создаст 5 вопросов с четырьмя вариантами ответа.</p><textarea id="quizInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="quizGenerateBtn" onclick="generateQuiz()">Создать тест</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="quizStage"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
 <div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><p class="muted" data-ru="Вставь учебный текст — Gemini создаст 8 карточек для запоминания." data-kz="Оқу мәтінін енгіз — Gemini есте сақтауға арналған 8 карточка жасайды.">Вставь учебный текст — Gemini создаст 8 карточек для запоминания.</p><textarea id="flashInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="flashGenerateBtn" onclick="generateFlashcards()">Создать карточки</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="flashStage" aria-live="polite"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
-<div class="modal" id="planModal"><div class="dialog"><h2>Study Planner</h2><p>Демо-план на 3 дня</p><div class="result">День 1 · Изучи материал и выдели 5 ключевых понятий.\nДень 2 · Повтори понятия и пройди тест.\nДень 3 · Разбери ошибки и пройди повторную проверку.</div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
+<div class="modal" id="planModal"><div class="dialog"><h2>Study Planner</h2><p class="muted" data-ru="Составь персональный план подготовки с помощью Gemini." data-kz="Gemini көмегімен жеке оқу жоспарын құр.">Составь персональный план подготовки с помощью Gemini.</p><label for="planTopic">Тема или цель обучения</label><textarea id="planTopic" maxlength="500" placeholder="Например: подготовка к экзамену по биологии"></textarea><div class="row"><label>Количество дней <input id="planDays" type="number" min="1" max="30" value="7" style="width:75px;padding:9px;background:#091226;color:white;border:1px solid #43577d;border-radius:9px"></label><label>Минут в день <input id="planMinutes" type="number" min="10" max="240" step="5" value="30" style="width:85px;padding:9px;background:#091226;color:white;border:1px solid #43577d;border-radius:9px"></label></div><p class="muted" style="font-size:12px">Если загружен документ, план будет учитывать его текст (до 20 000 символов).</p><div class="row"><button class="btn primary" id="planGenerateBtn" onclick="generateStudyPlan()">Создать AI-план</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="planResult" style="display:none" aria-live="polite"></div></div></div>
 <div class="modal" id="tutorModal"><div class="dialog"><h2>AI Tutor</h2><p class="muted">Демонстрационный пример вопроса преподавателю.</p><textarea placeholder="Например: объясни фотосинтез простыми словами..."></textarea><div class="row"><button class="btn primary" onclick="showToast('Подключение AI-преподавателя добавим на следующем этапе')">Отправить вопрос</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 let lang='ru';
+
+async function generateStudyPlan(){
+ const topic=document.getElementById('planTopic').value.trim();
+ const days=Number(document.getElementById('planDays').value);
+ const minutes=Number(document.getElementById('planMinutes').value);
+ const btn=document.getElementById('planGenerateBtn');
+ const result=document.getElementById('planResult');
+ if(topic.length<3){showToast('Укажи тему или цель обучения');return}
+ if(!Number.isInteger(days)||days<1||days>30||!Number.isInteger(minutes)||minutes<10||minutes>240){showToast('Укажи 1–30 дней и 10–240 минут в день');return}
+ btn.disabled=true;btn.textContent='Составляем план…';result.style.display='block';result.textContent='Gemini составляет персональный план…';
+ try{
+  const material=(document.getElementById('noteInput')?.value||'').trim().slice(0,17000);
+  const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:'planner',text:'Тема: '+topic+'\nМатериал для обучения: '+(material||'Материал не приложен; используй общедоступные базовые знания.'),language:lang,days,minutes})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось создать план');
+  result.textContent=data.result||'Gemini не вернул план';
+ }catch(e){result.textContent='Ошибка: '+e.message}
+ finally{btn.disabled=false;btn.textContent='Создать AI-план'}
+}
+
 function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(){document.querySelectorAll('.modal').forEach(m=>m.classList.remove('show'))}
 function showToast(t){let x=document.getElementById('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)}
