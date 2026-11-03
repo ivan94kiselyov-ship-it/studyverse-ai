@@ -43,7 +43,7 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
 </div>
 <div class="modal" id="uploadModal"><div class="dialog"><h2 data-ru="Создать учебный набор" data-kz="Оқу жинағын жасау">Создать учебный набор</h2><p class="muted" data-ru="Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный." data-kz="Төмендегі жүктеу бөлімінен файлды таңда. Бұл кезеңде интерфейс демонстрациялық.">Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный.</p><button class="btn" onclick="closeModal()" data-ru="Закрыть" data-kz="Жабу">Закрыть</button></div></div>
 <div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст — Gemini подготовит структурированный конспект." data-kz="Оқу мәтінін енгіз — Gemini құрылымды конспект дайындайды.">Вставь учебный текст — Gemini подготовит структурированный конспект.</p><textarea id="noteInput" placeholder="Вставь текст лекции или учебного материала..." maxlength="20000"></textarea><div class="row"><button class="btn primary" id="summaryBtn" onclick="generateSummary()">Создать AI-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none"></div><p class="muted" style="font-size:11px">Не вставляй личные или конфиденциальные данные. Демо-версия: до 20 000 символов за запрос.</p></div></div>
-<div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p data-ru="Какой подход помогает лучше закреплять знания?" data-kz="Қай тәсіл білімді жақсы меңгеруге көмектеседі?">Какой подход помогает лучше закреплять знания?</p><div class="row" style="flex-direction:column"><button class="btn" onclick="quizAnswer(false)">Прочитать материал один раз</button><button class="btn" onclick="quizAnswer(true)">Регулярно повторять и проверять себя</button><button class="btn" onclick="quizAnswer(false)">Учить всё только накануне</button></div><div class="result" id="quizResult" style="display:none"></div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
+<div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p class="muted">Вставь учебный материал — Gemini создаст 5 вопросов с четырьмя вариантами ответа.</p><textarea id="quizInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="quizGenerateBtn" onclick="generateQuiz()">Создать тест</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="quizStage"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
 <div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><div class="result" id="flashText">Активное повторение<br><br>Нажми «Показать ответ».</div><div class="row"><button class="btn primary" onclick="document.getElementById('flashText').innerHTML='Метод обучения, при котором ученик самостоятельно вспоминает информацию, а не просто перечитывает её.'">Показать ответ</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
 <div class="modal" id="planModal"><div class="dialog"><h2>Study Planner</h2><p>Демо-план на 3 дня</p><div class="result">День 1 · Изучи материал и выдели 5 ключевых понятий.\nДень 2 · Повтори понятия и пройди тест.\nДень 3 · Разбери ошибки и пройди повторную проверку.</div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
 <div class="modal" id="tutorModal"><div class="dialog"><h2>AI Tutor</h2><p class="muted">Демонстрационный пример вопроса преподавателю.</p><textarea placeholder="Например: объясни фотосинтез простыми словами..."></textarea><div class="row"><button class="btn primary" onclick="showToast('Подключение AI-преподавателя добавим на следующем этапе')">Отправить вопрос</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
@@ -81,7 +81,56 @@ async function generateSummary(){
   }
 }
 
-function quizAnswer(ok){let r=document.getElementById('quizResult');r.style.display='block';r.textContent=ok?'Верно! Регулярное повторение и самопроверка помогают закреплять знания.':'Попробуй ещё раз. Подсказка: важно не только читать, но и вспоминать информацию.'}
+
+let activeQuiz=null, quizAnswers={}, quizSubmitted=false;
+async function generateQuiz(){
+  const source=document.getElementById('quizInput').value.trim();
+  const btn=document.getElementById('quizGenerateBtn'), stage=document.getElementById('quizStage');
+  if(source.length<30){showToast('Вставь учебный текст (минимум 30 символов)');return}
+  btn.disabled=true;btn.textContent='Создаём тест…';stage.textContent='Gemini готовит вопросы…';
+  try{
+    const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:source,language:lang,task:'quiz'})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Не удалось создать тест');
+    if(!data.quiz||!Array.isArray(data.quiz.questions))throw new Error('Неверный формат теста');
+    activeQuiz=data.quiz;quizAnswers={};quizSubmitted=false;renderQuiz();
+  }catch(e){stage.textContent='Ошибка: '+e.message}
+  finally{btn.disabled=false;btn.textContent='Создать тест'}
+}
+function renderQuiz(){
+  const stage=document.getElementById('quizStage');stage.replaceChildren();
+  if(!activeQuiz)return;
+  activeQuiz.questions.forEach((q,i)=>{
+    const block=document.createElement('div');block.className='result';block.style.marginTop='12px';
+    const title=document.createElement('strong');title.textContent=(i+1)+'. '+q.question;block.appendChild(title);
+    const opts=document.createElement('div');opts.style.display='grid';opts.style.gap='8px';opts.style.marginTop='12px';
+    q.options.forEach((answer,j)=>{
+      const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=String.fromCharCode(65+j)+'. '+answer;
+      if(quizSubmitted){
+        b.disabled=true;
+        if(j===q.correctIndex)b.style.borderColor='#55dfb0';
+        if(quizAnswers[i]===j&&j!==q.correctIndex)b.style.borderColor='#ff8585';
+      }else{
+        if(quizAnswers[i]===j)b.style.borderColor='#55dfb0';
+        b.onclick=()=>{quizAnswers[i]=j;renderQuiz()};
+      }
+      opts.appendChild(b);
+    });
+    block.appendChild(opts);
+    if(quizSubmitted){const p=document.createElement('p');p.textContent=(quizAnswers[i]===q.correctIndex?'✓ ':'✗ ')+q.explanation;block.appendChild(p)}
+    stage.appendChild(block);
+  });
+  if(!quizSubmitted){
+    const btn=document.createElement('button');btn.className='btn primary';btn.style.marginTop='14px';btn.textContent='Проверить ответы';
+    btn.disabled=activeQuiz.questions.some((_,i)=>quizAnswers[i]===undefined);
+    btn.onclick=()=>{quizSubmitted=true;renderQuiz()};stage.appendChild(btn);
+  }else{
+    const score=activeQuiz.questions.reduce((n,q,i)=>n+(quizAnswers[i]===q.correctIndex?1:0),0);
+    const result=document.createElement('div');result.className='result';result.textContent='Результат: '+score+' / '+activeQuiz.questions.length+' ('+Math.round(100*score/activeQuiz.questions.length)+'%)';stage.appendChild(result);
+    const btn=document.createElement('button');btn.className='btn';btn.textContent='Пройти заново';btn.onclick=()=>{quizAnswers={};quizSubmitted=false;renderQuiz()};stage.appendChild(btn);
+  }
+}
+
 document.getElementById('fileInput').addEventListener('change',e=>{let f=e.target.files[0];document.getElementById('fileName').textContent=f?f.name+' · выбран для демонстрации':'Файл пока не выбран'});
 document.getElementById('langBtn').addEventListener('click',()=>{lang=lang==='ru'?'kz':'ru';document.documentElement.lang=lang;document.querySelectorAll('[data-ru]').forEach(el=>{el.innerHTML=el.getAttribute('data-'+lang)});document.getElementById('langBtn').textContent=lang==='ru'?'ҚАЗ / РУС':'РУС / ҚАЗ'});
 document.getElementById('profileBtn').addEventListener('click',()=>showToast('Личный кабинет добавим на следующем этапе'));
