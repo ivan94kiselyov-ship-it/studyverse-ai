@@ -44,7 +44,7 @@ button,select,textarea{font:inherit}.app{max-width:1240px;margin:auto;padding:24
 <div class="modal" id="uploadModal"><div class="dialog"><h2 data-ru="Создать учебный набор" data-kz="Оқу жинағын жасау">Создать учебный набор</h2><p class="muted" data-ru="Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный." data-kz="Төмендегі жүктеу бөлімінен файлды таңда. Бұл кезеңде интерфейс демонстрациялық.">Выбери файл в блоке загрузки ниже. На этом этапе интерфейс демонстрационный.</p><button class="btn" onclick="closeModal()" data-ru="Закрыть" data-kz="Жабу">Закрыть</button></div></div>
 <div class="modal" id="notesModal"><div class="dialog"><h2>AI-конспект</h2><p class="muted" data-ru="Вставь учебный текст — Gemini подготовит структурированный конспект." data-kz="Оқу мәтінін енгіз — Gemini құрылымды конспект дайындайды.">Вставь учебный текст — Gemini подготовит структурированный конспект.</p><textarea id="noteInput" placeholder="Вставь текст лекции или учебного материала..." maxlength="20000"></textarea><div class="row"><button class="btn primary" id="summaryBtn" onclick="generateSummary()">Создать AI-конспект</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div class="result" id="notesResult" style="display:none"></div><p class="muted" style="font-size:11px">Не вставляй личные или конфиденциальные данные. Демо-версия: до 20 000 символов за запрос.</p></div></div>
 <div class="modal" id="quizModal"><div class="dialog"><h2>Smart Quiz</h2><p class="muted">Вставь учебный материал — Gemini создаст 5 вопросов с четырьмя вариантами ответа.</p><textarea id="quizInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="quizGenerateBtn" onclick="generateQuiz()">Создать тест</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="quizStage"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
-<div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><div class="result" id="flashText">Активное повторение<br><br>Нажми «Показать ответ».</div><div class="row"><button class="btn primary" onclick="document.getElementById('flashText').innerHTML='Метод обучения, при котором ученик самостоятельно вспоминает информацию, а не просто перечитывает её.'">Показать ответ</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
+<div class="modal" id="cardsModal"><div class="dialog"><h2>Flashcards</h2><p class="muted" data-ru="Вставь учебный текст — Gemini создаст 8 карточек для запоминания." data-kz="Оқу мәтінін енгіз — Gemini есте сақтауға арналған 8 карточка жасайды.">Вставь учебный текст — Gemini создаст 8 карточек для запоминания.</p><textarea id="flashInput" maxlength="20000" placeholder="Вставь учебный текст..."></textarea><div class="row"><button class="btn primary" id="flashGenerateBtn" onclick="generateFlashcards()">Создать карточки</button><button class="btn" onclick="closeModal()">Закрыть</button></div><div id="flashStage" aria-live="polite"></div><p class="muted" style="font-size:11px">Не вводи личные или конфиденциальные данные.</p></div></div>
 <div class="modal" id="planModal"><div class="dialog"><h2>Study Planner</h2><p>Демо-план на 3 дня</p><div class="result">День 1 · Изучи материал и выдели 5 ключевых понятий.\nДень 2 · Повтори понятия и пройди тест.\nДень 3 · Разбери ошибки и пройди повторную проверку.</div><button class="btn" onclick="closeModal()" style="margin-top:12px">Закрыть</button></div></div>
 <div class="modal" id="tutorModal"><div class="dialog"><h2>AI Tutor</h2><p class="muted">Демонстрационный пример вопроса преподавателю.</p><textarea placeholder="Например: объясни фотосинтез простыми словами..."></textarea><div class="row"><button class="btn primary" onclick="showToast('Подключение AI-преподавателя добавим на следующем этапе')">Отправить вопрос</button><button class="btn" onclick="closeModal()">Закрыть</button></div></div></div>
 <div class="toast" id="toast"></div>
@@ -81,6 +81,39 @@ async function generateSummary(){
   }
 }
 
+
+
+let flashcards=[],flashIndex=0,flashFlipped=false,flashKnown={};
+async function generateFlashcards(){
+ const source=document.getElementById('flashInput').value.trim();
+ const btn=document.getElementById('flashGenerateBtn'),stage=document.getElementById('flashStage');
+ if(source.length<30){showToast(lang==='ru'?'Вставь учебный текст (минимум 30 символов)':'Оқу мәтінін енгіз (кемінде 30 таңба)');return}
+ btn.disabled=true;btn.textContent=lang==='ru'?'Создаём карточки…':'Карточкалар жасалуда…';stage.textContent=lang==='ru'?'Gemini готовит карточки…':'Gemini карточкаларды дайындап жатыр…';
+ try{
+  const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:source,language:lang,task:'flashcards'})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Не удалось создать карточки');
+  if(!data.flashcards||!Array.isArray(data.flashcards.cards)||!data.flashcards.cards.length)throw new Error('Неверный формат карточек');
+  flashcards=data.flashcards.cards;flashIndex=0;flashFlipped=false;flashKnown={};renderFlashcards();
+ }catch(e){stage.textContent='Ошибка: '+e.message}
+ finally{btn.disabled=false;btn.textContent=lang==='ru'?'Создать карточки':'Карточка жасау'}
+}
+function renderFlashcards(){
+ const stage=document.getElementById('flashStage');stage.replaceChildren();if(!flashcards.length)return;
+ const total=flashcards.length,card=flashcards[flashIndex];
+ const counter=document.createElement('p');counter.className='muted';counter.textContent=(flashIndex+1)+' / '+total+' · '+(lang==='ru'?'Выучено: ':'Үйренілді: ')+Object.values(flashKnown).filter(Boolean).length;stage.appendChild(counter);
+ const face=document.createElement('button');face.type='button';face.className='result';face.style.cssText='display:block;width:100%;min-height:145px;text-align:center;cursor:pointer;white-space:pre-wrap;font-size:17px;line-height:1.6;border:1px solid #55dfb0';
+ face.textContent=flashFlipped?card.answer:card.question;face.onclick=()=>{flashFlipped=!flashFlipped;renderFlashcards()};stage.appendChild(face);
+ const hint=document.createElement('p');hint.className='muted';hint.textContent=lang==='ru'?'Нажми на карточку, чтобы перевернуть':'Карточканы аудару үшін бас';stage.appendChild(hint);
+ const row=document.createElement('div');row.className='row';
+ function makeButton(label,handler,disabled){const b=document.createElement('button');b.className='btn';b.textContent=label;b.disabled=!!disabled;b.onclick=handler;row.appendChild(b)}
+ makeButton('←',()=>{flashIndex--;flashFlipped=false;renderFlashcards()},flashIndex===0);
+ makeButton(lang==='ru'?'Знаю ✓':'Білемін ✓',()=>{flashKnown[flashIndex]=true;renderFlashcards()},false);
+ makeButton(lang==='ru'?'Повторить':'Қайталау',()=>{flashKnown[flashIndex]=false;renderFlashcards()},false);
+ makeButton('→',()=>{flashIndex++;flashFlipped=false;renderFlashcards()},flashIndex===total-1);
+ stage.appendChild(row);
+ const footer=document.createElement('p');footer.className='muted';footer.textContent=lang==='ru'?'Отметки сохраняются до обновления страницы.':'Белгілер бет жаңартылғанға дейін сақталады.';stage.appendChild(footer);
+}
 
 let activeQuiz=null, quizAnswers={}, quizSubmitted=false;
 async function generateQuiz(){
